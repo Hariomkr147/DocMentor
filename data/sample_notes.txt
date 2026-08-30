@@ -1,0 +1,1 @@
+Gradient descent is an optimization algorithm that updates model parameters in the direction that reduces the loss. The learning rate controls the step size. Backpropagation computes gradients using the chain rule.
