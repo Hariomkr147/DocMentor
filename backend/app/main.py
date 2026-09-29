@@ -68,8 +68,16 @@ def delete_document(document_id: str):
 @app.post('/sessions', response_model=SessionOut)
 def create_session(): return sessions.create()
 
+@app.get('/sessions', response_model=list[SessionOut])
+def list_sessions(): return sessions.list()
+
 @app.get('/sessions/{session_id}/messages', response_model=list[MessageOut])
 def session_messages(session_id: str): return sessions.messages(session_id)
+
+@app.delete('/sessions/{session_id}')
+def delete_session(session_id: str):
+    sessions.delete(session_id)
+    return {'status': 'deleted'}
 
 @app.post('/chat', response_model=ChatResponse)
 def chat(req: ChatRequest):

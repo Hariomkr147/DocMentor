@@ -33,6 +33,7 @@ def _int(name: str, default: int) -> int:
 @dataclass(frozen=True)
 class Settings:
     gemini_api_key: str = os.getenv("GEMINI_API_KEY", os.getenv("GOOGLE_API_KEY", ""))
+    openrouter_api_key: str = os.getenv("OPENROUTER_API_KEY", "")
     gemini_model: str = _model_name()
     embedding_model: str = os.getenv("EMBEDDING_MODEL", "BAAI/bge-small-en-v1.5")
     app_env: str = os.getenv("APP_ENV", "development")

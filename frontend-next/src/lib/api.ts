@@ -28,7 +28,7 @@ export interface ChatResponse {
   session_id: string;
   answer: string;
   citations: Citation[];
-  metadata: any;
+  metadata: { model?: string; [key: string]: any };
 }
 
 export const api = {
@@ -58,17 +58,34 @@ export const api = {
     return res.data;
   },
 
+  async getSessions() {
+    const res = await apiClient.get('/sessions');
+    return res.data;
+  },
+
+  async deleteSession(id: string) {
+    const res = await apiClient.delete(`/sessions/${id}`);
+    return res.data;
+  },
+
+  async getSessionMessages(sessionId: string) {
+    const res = await apiClient.get(`/sessions/${sessionId}/messages`);
+    return res.data;
+  },
+
   async chat(
     question: string,
     documentIds: string[],
     mode: string,
-    sessionId?: string | null
+    sessionId?: string | null,
+    model?: string
   ): Promise<ChatResponse> {
     const res = await apiClient.post('/chat', {
       question,
       document_ids: documentIds,
       mode,
       session_id: sessionId,
+      model,
     });
     return res.data;
   },

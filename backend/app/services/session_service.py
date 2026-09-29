@@ -13,3 +13,7 @@ class SessionService:
             c.execute('INSERT INTO messages VALUES (?,?,?,?,?,?,?,?)', (str(uuid.uuid4()), sid, role, content, now_iso(), json.dumps(sources or []), latency_ms, model_name)); c.execute('UPDATE sessions SET updated_at=? WHERE id=?', (now_iso(), sid))
     def messages(self, sid):
         with get_conn() as c: return [dict(r) for r in c.execute('SELECT id,role,content,created_at FROM messages WHERE session_id=? ORDER BY created_at', (sid,))]
+    def list(self):
+        with get_conn() as c: return [dict(r) for r in c.execute('SELECT id,title,created_at,updated_at FROM sessions ORDER BY updated_at DESC')]
+    def delete(self, sid):
+        with get_conn() as c: c.execute('DELETE FROM sessions WHERE id=?', (sid,))

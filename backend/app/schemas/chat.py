@@ -7,6 +7,7 @@ class ChatRequest(BaseModel):
     question: str = Field(min_length=1, max_length=10000)
     document_ids: list[str] = []
     mode: Literal["ask", "explain", "summarize", "study", "quiz", "compare"] = "ask"
+    model: str | None = None
 
 class ChatResponse(BaseModel):
     session_id: str

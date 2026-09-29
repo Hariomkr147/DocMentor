@@ -1,27 +1,37 @@
 import time
 from backend.app.rag.prompts import SYSTEM_PROMPT, build_prompt
 
-def generate_answer(question: str, results: list[dict], mode: str, api_key: str, model: str) -> tuple[str, float, str]:
-    if not results:
-        return "I couldn't find enough information in the uploaded documents to answer that confidently.", 0.0, 'none'
-    context = '\n\n'.join(f"[{r['source']} p.{r['page']}] {r['text']}" for r in results)
+def generate_answer(question: str, results: list[dict], mode: str, gemini_key: str, openrouter_key: str, model: str) -> tuple[str, float, str]:
+    context = '\n\n'.join(f"[{r['source']} p.{r['page']}] {r['text']}" for r in results) if results else ''
+    prompt = f"{SYSTEM_PROMPT}\n\n{build_prompt(question, context, mode)}" if context else question
     started = time.perf_counter()
-    if api_key:
-        try:
-            import httpx
-            prompt = f"{SYSTEM_PROMPT}\n\n{build_prompt(question, context, mode)}"
-            endpoint = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
-            response = httpx.post(endpoint, params={'key': api_key}, json={'contents': [{'role': 'user', 'parts': [{'text': prompt}]}], 'generationConfig': {'temperature': 0.2}}, timeout=60)
+    import httpx
+    
+    try:
+        if model.startswith('openrouter/'):
+            if not openrouter_key: return "OpenRouter API key not configured.", (time.perf_counter() - started) * 1000, 'error'
+            or_model = model.removeprefix('openrouter/')
+            response = httpx.post(
+                "https://openrouter.ai/api/v1/chat/completions",
+                headers={"Authorization": f"Bearer {openrouter_key}"},
+                json={"model": or_model, "messages": [{"role": "user", "content": prompt}], "temperature": 0.2},
+                timeout=60
+            )
             response.raise_for_status()
-            payload = response.json()
-            text = payload['candidates'][0]['content']['parts'][0]['text']
+            text = response.json()['choices'][0]['message']['content']
             return text, (time.perf_counter() - started) * 1000, model
-        except Exception as exc:
-            # Keep the user-facing answer grounded, while making the failure
-            # diagnosable in the metadata returned by the API/UI.
-            error_type = type(exc).__name__
-            return local_answer(results, mode), (time.perf_counter() - started) * 1000, f'gemini-error:{error_type}'
-    return local_answer(results, mode), (time.perf_counter() - started) * 1000, 'local-fallback'
+        elif gemini_key:
+            endpoint = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
+            response = httpx.post(endpoint, params={'key': gemini_key}, json={'contents': [{'role': 'user', 'parts': [{'text': prompt}]}], 'generationConfig': {'temperature': 0.2}}, timeout=60)
+            response.raise_for_status()
+            text = response.json()['candidates'][0]['content']['parts'][0]['text']
+            return text, (time.perf_counter() - started) * 1000, model
+    except Exception as exc:
+        error_type = type(exc).__name__
+        if hasattr(exc, 'response') and exc.response is not None:
+            print(f"API Error: {exc.response.text}")
+        return local_answer(results, mode) if results else f"API Error: {error_type}", (time.perf_counter() - started) * 1000, f'error:{error_type}'
+    return local_answer(results, mode) if results else "No API key configured for chat.", (time.perf_counter() - started) * 1000, 'local-fallback'
 
 def local_answer(results: list[dict], mode: str) -> str:
     context = '\n\n'.join(f"• {r['text']} ({r['source']}, page {r['page']})" for r in results)
